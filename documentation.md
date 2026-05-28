@@ -191,8 +191,6 @@ The Machine Learning model will predict this value.
 | Features |
 |---|
 | season |
-| yr |
-| mnth |
 | hr |
 | holiday |
 | weekday |
@@ -213,6 +211,8 @@ The Machine Learning model will predict this value.
 | dteday | Duplicate time information |
 | casual | Data leakage |
 | registered | Data leakage |
+| yr |
+| mnth |
 
 ---
 
@@ -234,7 +234,7 @@ If these columns are used as input features, the model will indirectly know the 
 
 ```python
 import pandas as pd
-
+        
 df = pd.read_csv("../data/hour.csv")
 ```
 
