@@ -466,16 +466,15 @@ with tab_compare:
 
 with tab_conclusion:
     st.subheader("Kết luận")
-
-    w1, w2, w3, w4 = st.columns(4)
-    for col, step, text in [
-        (w1, "EDA", "Hiểu phân phối, outlier và xu hướng theo thời gian."),
-        (w2, "Feature", "Xác định biến ảnh hưởng mạnh đến nhu cầu."),
-        (w3, "Model", "Huấn luyện và so sánh Linear Regression, Random Forest, XGBoost."),
-        (w4, "Prediction", "Dự đoán số lượt thuê xe từ input thực tế."),
+    c1, c2, c3, c4 = st.columns(4)
+    for col, icon, step, text in [
+        (c1, "📊", "EDA",        "Hiểu phân phối, outlier và xu hướng theo thời gian."),
+        (c2, "📌", "Feature",    "Xác định biến ảnh hưởng mạnh đến nhu cầu."),
+        (c3, "🤖", "Model",      "Huấn luyện và so sánh 3 model ML."),
+        (c4, "🎯", "Prediction", "Dự đoán số lượt thuê xe từ input thực tế."),
     ]:
         with col:
-            st.metric(step, text)
+            st.info(f"**{icon} {step}**\n\n{text}")
 
     st.markdown("#### Insight BI")
     c1, c2, c3 = st.columns(3)
