@@ -19,12 +19,13 @@ ROOT_DIR = APP_DIR.parent
 MODEL_DIR = APP_DIR / "../models"
 IMAGE_DIR = APP_DIR / "../images"
 
-FEATURES = ["hr", "workingday", "season", "weathersit", "temp_combined", "hum", "windspeed"]
+FEATURES = ["hr", "weekday", "workingday", "season", "weathersit", "temp_combined", "hum", "windspeed"]
 DEFAULT_COLUMNS = [
     "temp_combined",
     "hum",
     "windspeed",
     *[f"hr_{i}" for i in range(1, 24)],
+    *[f"weekday_{i}" for i in range(1, 7)],  # weekday 0 là base (drop_first=True)
     "workingday_1",
     "season_2",
     "season_3",
@@ -38,7 +39,8 @@ MODEL_METRICS = pd.DataFrame(
         "Model": ["Linear Regression", "Random Forest", "XGBoost"],
         "MAE": [78.062, 46.161, 45.568],
         "RMSE": [109.248, 69.828, 68.503],
-        "R²": [0.623,0.846, 0.852],
+        "R²": [0.623, 0.846, 0.852],
+        "CV R²": [0.312, 0.517, 0.492],
     }
 )
 
@@ -58,6 +60,16 @@ WEATHER_LABELS = {
 WORKINGDAY_LABELS = {
     0: "0 - Ngày nghỉ",
     1: "1 - Ngày làm việc",
+}
+
+WEEKDAY_LABELS = {
+    0: "0 - Chủ nhật",
+    1: "1 - Thứ 2",
+    2: "2 - Thứ 3",
+    3: "3 - Thứ 4",
+    4: "4 - Thứ 5",
+    5: "5 - Thứ 6",
+    6: "6 - Thứ 7",
 }
 
 
@@ -185,6 +197,7 @@ def build_encoded_input(values: dict, columns: list[str], scale_numeric: bool) -
 
     for prefix, selected in {
         "hr": values["hr"],
+        "weekday": values["weekday"],
         "workingday": values["workingday"],
         "season": values["season"],
         "weathersit": values["weathersit"],
@@ -221,6 +234,7 @@ def current_input_table(values: dict) -> pd.DataFrame:
     return pd.DataFrame(
         [
             ("⏰ Giờ", "hr", values["hr"]),
+            ("📆 Thứ", "weekday", WEEKDAY_LABELS[values["weekday"]]),
             ("📅 Ngày làm việc", "workingday", WORKINGDAY_LABELS[values["workingday"]]),
             ("🌱 Mùa", "season", SEASON_LABELS[values["season"]]),
             ("🌤️ Thời tiết", "weathersit", WEATHER_LABELS[values["weathersit"]]),
@@ -242,6 +256,7 @@ if "started" not in st.session_state:
 if "latest_input" not in st.session_state:
     st.session_state.latest_input = {
         "hr": 8,
+        "weekday": 1,
         "workingday": 1,
         "season": 2,
         "weathersit": 1,
@@ -295,6 +310,12 @@ with tab_predict:
             c1, c2 = st.columns(2)
             with c1:
                 hr = st.slider("⏰ Giờ trong ngày", 0, 23, st.session_state.latest_input["hr"], 1)
+                weekday = st.selectbox(
+                    "📆 Thứ trong tuần",
+                    options=list(WEEKDAY_LABELS.keys()),
+                    format_func=lambda value: WEEKDAY_LABELS[value],
+                    index=list(WEEKDAY_LABELS.keys()).index(st.session_state.latest_input["weekday"]),
+                )
                 season = st.selectbox(
                     "🌱 Mùa",
                     options=list(SEASON_LABELS.keys()),
@@ -338,6 +359,7 @@ with tab_predict:
 
     values = {
         "hr": hr,
+        "weekday": weekday,
         "workingday": workingday,
         "season": season,
         "weathersit": weathersit,
@@ -347,12 +369,12 @@ with tab_predict:
     }
     st.session_state.latest_input = values
 
-    lr_input = build_encoded_input(values, model_columns(lr_model), scale_numeric=True)
-    rf_input = build_encoded_input(values, model_columns(rf_model), scale_numeric=False)
+    lr_input  = build_encoded_input(values, model_columns(lr_model),  scale_numeric=True)
+    rf_input  = build_encoded_input(values, model_columns(rf_model),  scale_numeric=False)
     xgb_input = build_encoded_input(values, model_columns(xgb_model), scale_numeric=False)
 
-    lr_prediction = predict_model(lr_model, lr_input)
-    rf_prediction = predict_model(rf_model, rf_input)
+    lr_prediction  = predict_model(lr_model,  lr_input)
+    rf_prediction  = predict_model(rf_model,  rf_input)
     xgb_prediction = predict_model(xgb_model, xgb_input)
 
     with result_area:
@@ -426,7 +448,10 @@ with tab_compare:
 
     table_df = MODEL_METRICS.copy()
     styled_table = table_df.style.apply(
-        lambda row: ["background-color: #dcfce7; font-weight: 700" if row["Model"] == "XGBoost" else "" for _ in row],
+        lambda row: [
+            "background-color: #dcfce7; font-weight: 700" if row["Model"] == "XGBoost" else ""
+            for _ in row
+        ],
         axis=1,
     )
     st.dataframe(styled_table, use_container_width=True, hide_index=True)
@@ -442,7 +467,7 @@ with tab_compare:
                     x=alt.X("Model:N", sort=None, title=None),
                     y=alt.Y(f"{metric}:Q", title=metric),
                     color=alt.condition(
-                        alt.datum.Model == "Random Forest",
+                        alt.datum.Model == "XGBoost",
                         alt.value("#0f766e"),
                         alt.value("#94a3b8"),
                     ),
@@ -455,10 +480,9 @@ with tab_compare:
     st.markdown(
         """
         <div class="insight">
-        "<b>XGBoost có MAE và RMSE thấp nhất trên tập test</b>, 
-        tuy nhiên Random Forest ổn định hơn qua cross-validation (CV R² = 0.517 vs 0.492), 
-        ít overfit hơn. Trong thực tế, Random Forest được chọn làm model chính vì 
-        khả năng tổng quát hóa tốt hơn."
+        <b>XGBoost có MAE và RMSE thấp nhất trên tập test</b>, tuy nhiên Random Forest ổn định hơn
+        qua cross-validation (CV R² = 0.517 vs 0.492), ít overfit hơn. Trong thực tế,
+        Random Forest được chọn làm model chính vì khả năng tổng quát hóa tốt hơn.
         </div>
         """,
         unsafe_allow_html=True,
@@ -483,4 +507,4 @@ with tab_conclusion:
     with c2:
         st.info("Thời tiết xấu làm giảm nhu cầu thuê xe.", icon="🌤️")
     with c3:
-        st.info("Random Forest là model tốt nhất trong 3 model.", icon="📈")
+        st.info("Random Forest ổn định nhất qua cross-validation.", icon="📈")
