@@ -36,9 +36,9 @@ DEFAULT_COLUMNS = [
 MODEL_METRICS = pd.DataFrame(
     {
         "Model": ["Linear Regression", "Random Forest", "XGBoost"],
-        "MAE": [78.04, 49.64, 51.98],
-        "RMSE": [109.22, 74.98, 75.32],
-        "R²": [0.623, 0.822, 0.821],
+        "MAE": [78.062, 46.161, 45.568],
+        "RMSE": [109.248, 69.828, 68.503],
+        "R²": [0.623,0.846, 0.852],
     }
 )
 
@@ -52,8 +52,7 @@ SEASON_LABELS = {
 WEATHER_LABELS = {
     1: "1 - Trời đẹp / ít mây",
     2: "2 - Nhiều mây / sương nhẹ",
-    3: "3 - Mưa nhẹ / tuyết nhẹ",
-    4: "4 - Thời tiết rất xấu",
+    3: "3 - Mưa nhẹ / tuyết nhẹ hoặc rất xấu",
 }
 
 WORKINGDAY_LABELS = {
@@ -427,7 +426,7 @@ with tab_compare:
 
     table_df = MODEL_METRICS.copy()
     styled_table = table_df.style.apply(
-        lambda row: ["background-color: #dcfce7; font-weight: 700" if row["Model"] == "Random Forest" else "" for _ in row],
+        lambda row: ["background-color: #dcfce7; font-weight: 700" if row["Model"] == "XGBoost" else "" for _ in row],
         axis=1,
     )
     st.dataframe(styled_table, use_container_width=True, hide_index=True)
@@ -456,8 +455,10 @@ with tab_compare:
     st.markdown(
         """
         <div class="insight">
-        <b>Random Forest là model tốt nhất</b> vì có MAE và RMSE thấp nhất, đồng thời R² cao nhất.
-        Mô hình cây ensemble bắt được quan hệ phi tuyến giữa giờ, thời tiết, mùa và nhu cầu thuê xe tốt hơn Linear Regression.
+        "<b>XGBoost có MAE và RMSE thấp nhất trên tập test</b>, 
+        tuy nhiên Random Forest ổn định hơn qua cross-validation (CV R² = 0.517 vs 0.492), 
+        ít overfit hơn. Trong thực tế, Random Forest được chọn làm model chính vì 
+        khả năng tổng quát hóa tốt hơn."
         </div>
         """,
         unsafe_allow_html=True,
